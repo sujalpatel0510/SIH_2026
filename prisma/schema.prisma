@@ -1,0 +1,411 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TRAINEE
+  TRAINER
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISABLED
+}
+
+enum CourseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ResourceType {
+  PDF
+  PPT
+  VIDEO
+  DOCUMENT
+  NOTES
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum GapSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  SUCCESS
+  WARNING
+}
+
+model User {
+  id            String      @id @default(uuid())
+  name          String
+  email         String      @unique
+  passwordHash  String
+  role          Role        @default(TRAINEE)
+  status        UserStatus  @default(PENDING)
+  avatarUrl     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  traineeProfile    TraineeProfile?
+  trainerProfile    TrainerProfile?
+  authoredCourses   Course[]             @relation("TrainerCourses")
+  resourcesUploaded LearningResource[]   @relation("TrainerResources")
+  assessmentsAuth   Assessment[]         @relation("TrainerAssessments")
+  enrollments       CourseEnrollment[]
+  assessmentAttempts AssessmentAttempt[]
+  certificates      Certificate[]
+  feedbacks         Feedback[]
+  notifications     Notification[]
+  competencyGaps    CompetencyGap[]
+  recommendations   Recommendation[]
+  traineeCompetencies TraineeCompetency[]
+
+  @@map("users")
+}
+
+model TraineeProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qualifications  String?
+  experience      String?
+  interests       String?
+  skills          String?
+  careerGoal      String?
+  department      String?
+  phone           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("trainee_profiles")
+}
+
+model TrainerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qualifications  String?
+  experience      String?
+  expertise       String?
+  subjects        String?
+  certifications  String?
+  bio             String?
+  rating          Float    @default(4.9)
+  totalTrainees   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trainerCompetencies TrainerCompetency[]
+
+  @@map("trainer_profiles")
+}
+
+model Skill {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("skills")
+}
+
+model Competency {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  category    String
+  description String?
+  targetLevel Int      @default(3) // 1-5 Scale
+  createdAt   DateTime @default(now())
+
+  traineeCompetencies TraineeCompetency[]
+  trainerCompetencies TrainerCompetency[]
+  competencyGaps      CompetencyGap[]
+
+  @@map("competencies")
+}
+
+model TraineeCompetency {
+  id              String     @id @default(uuid())
+  traineeId       String
+  trainee         User       @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  competencyId    String
+  competency      Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  currentLevel    Int        @default(1) // 1 to 5
+  targetLevel     Int        @default(4)
+  assessmentScore Float      @default(0)
+  gap             Int        @default(3) // target - current
+  verified        Boolean    @default(false)
+  lastEvaluatedAt DateTime   @default(now())
+
+  @@unique([traineeId, competencyId])
+  @@map("trainee_competencies")
+}
+
+model TrainerCompetency {
+  id              String         @id @default(uuid())
+  trainerProfileId String
+  trainerProfile  TrainerProfile @relation(fields: [trainerProfileId], references: [id], onDelete: Cascade)
+  competencyId    String
+  competency      Competency     @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  expertiseLevel  Int            @default(5)
+  yearsExperience Int            @default(3)
+  verified        Boolean        @default(true)
+
+  @@unique([trainerProfileId, competencyId])
+  @@map("trainer_competencies")
+}
+
+model Course {
+  id            String       @id @default(uuid())
+  trainerId     String
+  trainer       User         @relation("TrainerCourses", fields: [trainerId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  subject       String
+  category      String
+  difficulty    Difficulty   @default(BEGINNER)
+  durationHours Int          @default(10)
+  thumbnailUrl  String?
+  status        CourseStatus @default(PUBLISHED)
+  targetSkills  String?      // Comma-separated target competencies/skills
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  enrollments   CourseEnrollment[]
+  resources     LearningResource[]
+  assessments   Assessment[]
+  certificates  Certificate[]
+  feedbacks     Feedback[]
+  recommendations Recommendation[]
+
+  @@map("courses")
+}
+
+model CourseEnrollment {
+  id          String   @id @default(uuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  traineeId   String
+  trainee     User     @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  progress    Int      @default(0) // 0 - 100
+  status      String   @default("ACTIVE") // ACTIVE, COMPLETED
+  enrolledAt  DateTime @default(now())
+  completedAt DateTime?
+
+  @@unique([courseId, traineeId])
+  @@map("course_enrollments")
+}
+
+model LearningResource {
+  id           String       @id @default(uuid())
+  courseId     String
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  trainerId    String
+  trainer      User         @relation("TrainerResources", fields: [trainerId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  resourceType ResourceType @default(PDF)
+  fileUrl      String
+  duration     String?
+  visibility   Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+
+  @@map("learning_resources")
+}
+
+model Assessment {
+  id              String      @id @default(uuid())
+  courseId        String
+  course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  trainerId       String
+  trainer         User        @relation("TrainerAssessments", fields: [trainerId], references: [id], onDelete: Cascade)
+  title           String
+  subject         String
+  description     String?
+  durationMinutes Int         @default(30)
+  totalMarks      Int         @default(100)
+  passingMarks    Int         @default(60)
+  deadline        DateTime?
+  difficulty      Difficulty  @default(INTERMEDIATE)
+  status          String      @default("PUBLISHED")
+  createdAt       DateTime    @default(now())
+
+  questions       Question[]
+  attempts        AssessmentAttempt[]
+
+  @@map("assessments")
+}
+
+model Question {
+  id            String     @id @default(uuid())
+  assessmentId  String
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctOption String     // 'A', 'B', 'C', or 'D'
+  marks         Int        @default(10)
+  explanation   String?
+  difficulty    Difficulty @default(INTERMEDIATE)
+
+  answers       AssessmentAnswer[]
+
+  @@map("questions")
+}
+
+model AssessmentAttempt {
+  id           String    @id @default(uuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  traineeId    String
+  trainee      User       @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  score        Float
+  maxScore     Float
+  percentage   Float
+  passed       Boolean
+  feedback     String?
+  startedAt    DateTime  @default(now())
+  submittedAt  DateTime  @default(now())
+
+  answers      AssessmentAnswer[]
+
+  @@map("assessment_attempts")
+}
+
+model AssessmentAnswer {
+  id             String            @id @default(uuid())
+  attemptId      String
+  attempt        AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption String
+  isCorrect      Boolean
+  marksAwarded   Int
+
+  @@map("assessment_answers")
+}
+
+model Certificate {
+  id                String   @id @default(uuid())
+  traineeId         String
+  trainee           User     @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  courseId          String
+  course            Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  certificateNumber String   @unique
+  title             String
+  issueDate         DateTime @default(now())
+  pdfUrl            String?
+  verificationCode  String   @unique
+
+  @@map("certificates")
+}
+
+model Feedback {
+  id            String   @id @default(uuid())
+  courseId      String
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  traineeId     String
+  trainee       User     @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  rating        Int      @default(5)
+  trainerRating Int      @default(5)
+  contentRating Int      @default(5)
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  @@map("feedback")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+model Announcement {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  authorName String
+  priority   String   @default("NORMAL") // NORMAL, HIGH, URGENT
+  targetRole String   @default("ALL")    // ALL, TRAINEE, TRAINER
+  createdAt  DateTime @default(now())
+
+  @@map("announcements")
+}
+
+model Achievement {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  recipientName String
+  recipientRole String
+  category      String
+  icon          String   @default("Award")
+  createdAt     DateTime @default(now())
+
+  @@map("achievements")
+}
+
+model CompetencyGap {
+  id                String      @id @default(uuid())
+  traineeId         String
+  trainee           User        @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  competencyId      String
+  competency        Competency  @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  currentLevel      Int
+  requiredLevel     Int
+  gapSeverity       GapSeverity @default(HIGH)
+  recommendedAction String?
+  identifiedAt      DateTime    @default(now())
+
+  @@unique([traineeId, competencyId])
+  @@map("competency_gaps")
+}
+
+model Recommendation {
+  id        String   @id @default(uuid())
+  traineeId String
+  trainee   User     @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  type      String   // "COURSE" or "TRAINER"
+  courseId  String?
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  trainerId String?
+  reason    String
+  score     Float    @default(95.0)
+  status    String   @default("ACTIVE") // ACTIVE, DISMISSED, ENROLLED
+  createdAt DateTime @default(now())
+
+  @@map("recommendations")
+}
