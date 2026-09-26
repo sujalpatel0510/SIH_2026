@@ -40,6 +40,7 @@ export default function TrainerDashboard() {
         <div className="flex items-center gap-3">
           <Link
             href="/trainer/ai-mcq-generator"
+            prefetch={true}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition"
           >
             <Wand2 className="w-4 h-4" />
@@ -47,6 +48,7 @@ export default function TrainerDashboard() {
           </Link>
           <Link
             href="/trainer/courses"
+            prefetch={true}
             className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-50 transition"
           >
             <PlusCircle className="w-4 h-4 text-brand-600" />
@@ -144,6 +146,7 @@ export default function TrainerDashboard() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/trainer/trainees"
+                    prefetch={true}
                     className="rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 transition"
                   >
                     View Analytics
@@ -166,6 +169,7 @@ export default function TrainerDashboard() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/trainer/trainees"
+                    prefetch={true}
                     className="rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-brand-50 hover:text-brand-700 transition"
                   >
                     View Analytics
@@ -188,6 +192,7 @@ export default function TrainerDashboard() {
             </div>
             <Link
               href="/trainer/ai-mcq-generator"
+              prefetch={true}
               className="rounded-xl bg-white px-5 py-3 text-xs font-bold text-indigo-950 hover:bg-slate-100 transition shrink-0 flex items-center gap-2"
             >
               <Wand2 className="w-4 h-4 text-indigo-600" />
@@ -205,6 +210,7 @@ export default function TrainerDashboard() {
             <div className="space-y-2 text-xs">
               <Link
                 href="/trainer/resources"
+                prefetch={true}
                 className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 hover:bg-slate-50 transition font-semibold text-slate-700"
               >
                 <span className="flex items-center gap-2">
@@ -214,6 +220,7 @@ export default function TrainerDashboard() {
               </Link>
               <Link
                 href="/trainer/assessments"
+                prefetch={true}
                 className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 hover:bg-slate-50 transition font-semibold text-slate-700"
               >
                 <span className="flex items-center gap-2">
@@ -223,6 +230,7 @@ export default function TrainerDashboard() {
               </Link>
               <Link
                 href="/trainer/profile"
+                prefetch={true}
                 className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 hover:bg-slate-50 transition font-semibold text-slate-700"
               >
                 <span className="flex items-center gap-2">

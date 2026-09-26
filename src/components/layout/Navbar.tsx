@@ -15,6 +15,17 @@ import {
   BookOpen,
   Award,
   CheckCircle2,
+  Menu,
+  X,
+  Target,
+  FileQuestion,
+  FolderArchive,
+  Bot,
+  Wand2,
+  BarChart3,
+  GraduationCap,
+  Users,
+  LayoutDashboard,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -22,6 +33,7 @@ export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -40,10 +52,11 @@ export const Navbar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close dropdowns on route change
+  // Close dropdowns & mobile menu on route change
   useEffect(() => {
     setShowNotifications(false);
     setShowProfileMenu(false);
+    setMobileMenuOpen(false);
   }, [pathname]);
 
   const getDashboardLink = () => {
@@ -53,6 +66,38 @@ export const Navbar: React.FC = () => {
     return '/trainee/dashboard';
   };
 
+  const role = user?.role || 'TRAINEE';
+  const traineeMobileLinks = [
+    { href: '/trainee/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/trainee/competencies', label: 'Competency Mapping', icon: Target, badge: 'AI Gap' },
+    { href: '/trainee/recommendations', label: 'Smart Recommendations', icon: Sparkles, badge: 'Match' },
+    { href: '/trainee/courses', label: 'Course Catalog', icon: BookOpen },
+    { href: '/trainee/resources', label: 'Learning Library', icon: FolderArchive },
+    { href: '/trainee/assessments', label: 'MCQ Assessments', icon: FileQuestion },
+    { href: '/trainee/certificates', label: 'My Certificates', icon: Award },
+    { href: '/trainee/ai-assistant', label: 'AI Copilot', icon: Bot },
+  ];
+
+  const trainerMobileLinks = [
+    { href: '/trainer/dashboard', label: 'Trainer Dashboard', icon: LayoutDashboard },
+    { href: '/trainer/courses', label: 'Course Management', icon: BookOpen },
+    { href: '/trainer/resources', label: 'Content Library', icon: FolderArchive },
+    { href: '/trainer/assessments', label: 'Questionnaires & MCQs', icon: FileQuestion },
+    { href: '/trainer/ai-mcq-generator', label: 'AI MCQ Generator', icon: Wand2, badge: 'AI Studio' },
+    { href: '/trainer/trainees', label: 'Trainee Cohorts', icon: BarChart3 },
+    { href: '/trainer/profile', label: 'Trainer Profile', icon: GraduationCap },
+  ];
+
+  const adminMobileLinks = [
+    { href: '/admin/dashboard', label: 'Admin Overview', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'User Approvals & RBAC', icon: Users, badge: '1 Pending' },
+    { href: '/admin/courses', label: 'Course Governance', icon: BookOpen },
+    { href: '/admin/analytics', label: 'Platform Analytics', icon: BarChart3 },
+    { href: '/admin/announcements', label: 'Announcements & Feed', icon: Bell },
+  ];
+
+  const mobileNavLinks = role === 'ADMIN' ? adminMobileLinks : role === 'TRAINER' ? trainerMobileLinks : traineeMobileLinks;
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md transition-all">
       {/* Full width container spanning entire screen, eliminating awkward empty margins */}
@@ -60,7 +105,7 @@ export const Navbar: React.FC = () => {
         
         {/* LEFT: Brand Logo & Title */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link href="/" prefetch={true} className="flex items-center gap-2.5 group">
             <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-purple-600 text-white shadow-md shadow-brand-500/25 group-hover:scale-105 transition-all duration-300">
               <Sparkles className="h-5 w-5 animate-pulse" />
               <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-tr from-brand-500 to-purple-500 opacity-0 group-hover:opacity-40 blur-sm transition-opacity" />
@@ -82,25 +127,28 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* RIGHT: User Profile / Navigation / Auth Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {user ? (
             <>
               {/* Quick Navigation Links */}
               <div className="hidden md:flex items-center gap-1 mr-1">
                 <Link
                   href={getDashboardLink()}
+                  prefetch={true}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/trainee/courses"
+                  prefetch={true}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition"
                 >
                   Courses
                 </Link>
                 <Link
                   href="/trainee/assessments"
+                  prefetch={true}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition"
                 >
                   Assessments
@@ -157,7 +205,7 @@ export const Navbar: React.FC = () => {
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="group flex items-center gap-2.5 rounded-full pl-1.5 pr-3 py-1 bg-white hover:bg-slate-50/90 border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-sm transition-all duration-200"
+                  className="group flex items-center gap-2 rounded-full pl-1.5 pr-2.5 py-1 bg-white hover:bg-slate-50/90 border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-sm transition-all duration-200"
                   aria-expanded={showProfileMenu}
                   aria-label="User menu"
                 >
@@ -222,6 +270,7 @@ export const Navbar: React.FC = () => {
                     <div className="space-y-0.5">
                       <Link
                         href={getDashboardLink()}
+                        prefetch={true}
                         onClick={() => setShowProfileMenu(false)}
                         className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50/70 hover:text-indigo-700 rounded-xl transition"
                       >
@@ -230,6 +279,7 @@ export const Navbar: React.FC = () => {
                       </Link>
                       <Link
                         href={user.role === 'TRAINER' ? '/trainer/profile' : user.role === 'ADMIN' ? '/admin/dashboard' : '/trainee/profile'}
+                        prefetch={true}
                         onClick={() => setShowProfileMenu(false)}
                         className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50/70 hover:text-indigo-700 rounded-xl transition"
                       >
@@ -239,6 +289,7 @@ export const Navbar: React.FC = () => {
                       {user.role === 'TRAINEE' && (
                         <Link
                           href="/trainee/certificates"
+                          prefetch={true}
                           onClick={() => setShowProfileMenu(false)}
                           className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50/70 hover:text-amber-700 rounded-xl transition"
                         >
@@ -249,6 +300,7 @@ export const Navbar: React.FC = () => {
                       {user.role === 'TRAINER' && (
                         <Link
                           href="/trainer/assessments"
+                          prefetch={true}
                           onClick={() => setShowProfileMenu(false)}
                           className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50/70 hover:text-purple-700 rounded-xl transition"
                         >
@@ -273,6 +325,15 @@ export const Navbar: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Mobile Drawer Hamburger Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 transition"
+                aria-label="Toggle navigation menu"
+              >
+                {mobileMenuOpen ? <X className="h-5 w-5 text-slate-800" /> : <Menu className="h-5 w-5 text-slate-800" />}
+              </button>
             </>
           ) : loading ? (
             <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-xl" />
@@ -280,12 +341,14 @@ export const Navbar: React.FC = () => {
             <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 href="/login"
+                prefetch={true}
                 className="text-xs font-bold text-slate-700 hover:text-brand-600 transition px-3 py-2 rounded-lg hover:bg-slate-100"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
+                prefetch={true}
                 className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-500/25 hover:from-brand-700 hover:to-indigo-700 transition"
               >
                 Get Started
@@ -295,6 +358,78 @@ export const Navbar: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer Overlay */}
+      {mobileMenuOpen && user && (
+        <div className="md:hidden border-t border-slate-200/90 bg-white/98 backdrop-blur-lg px-4 py-3 shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+              {role} Workspace Menu
+            </span>
+            <span className="text-[10px] text-brand-700 font-bold bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+              Quick Nav
+            </span>
+          </div>
+
+          <div className="space-y-1">
+            {mobileNavLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  prefetch={true}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
+                    isActive
+                      ? 'bg-brand-600 text-white font-bold shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <span className="truncate">{link.label}</span>
+                  </div>
+                  {link.badge && (
+                    <span
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                        isActive ? 'bg-white/25 text-white' : 'bg-brand-50 text-brand-700 border border-brand-200'
+                      }`}
+                    >
+                      {link.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src={user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.name || 'User')}`}
+                alt={user?.name || 'User'}
+                className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800 truncate">{user?.name || 'User'}</p>
+                <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                logout();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

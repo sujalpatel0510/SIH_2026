@@ -18,12 +18,15 @@ import {
   TrendingUp,
   UserCheck
 } from 'lucide-react';
+import { getClientCached, setClientCached } from '@/lib/client-cache';
 
 export default function RecommendationsPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState<any>(() =>
+    getClientCached('trainee_recs_data', null)
+  );
+  const [loading, setLoading] = useState(() => !recommendations);
   const [refreshing, setRefreshing] = useState(false);
-  const [recommendations, setRecommendations] = useState<any>(null);
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -35,6 +38,7 @@ export default function RecommendationsPage() {
       if (res.ok) {
         const json = await res.json();
         setRecommendations(json.recommendations);
+        setClientCached('trainee_recs_data', json.recommendations);
       }
     } catch (e) {
       console.error('Error fetching recommendations:', e);

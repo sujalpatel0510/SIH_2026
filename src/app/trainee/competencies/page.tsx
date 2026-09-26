@@ -5,11 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import { CompetencyRadar } from '@/components/competency/CompetencyRadar';
 import { Sparkles, RefreshCw, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { getClientCached, setClientCached } from '@/lib/client-cache';
 
 export default function CompetenciesPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>(() => getClientCached('trainee_competency_data', null));
+  const [loading, setLoading] = useState(() => !data);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchCompetencies = async () => {
@@ -18,6 +19,7 @@ export default function CompetenciesPage() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        setClientCached('trainee_competency_data', json);
       }
     } catch (e) {
       console.error(e);

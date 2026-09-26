@@ -20,10 +20,13 @@ export async function GET(req: Request) {
 
     const recommendations = await generateRecommendations(traineeId);
 
-    return NextResponse.json({
-      success: true,
-      recommendations,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        recommendations,
+      },
+      { headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' } }
+    );
   } catch (error) {
     console.error('Recommendations error:', error);
     return NextResponse.json({ error: 'Failed to generate recommendations' }, { status: 500 });

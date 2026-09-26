@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { GraduationCap, Award, BookOpen, Star, Save, User, Mail } from 'lucide-react';
 
 export default function TrainerProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const profile = user?.trainerProfile || {};
 
   const [name, setName] = useState(user?.name || 'Dr. Rajesh Verma');
@@ -18,11 +18,38 @@ export default function TrainerProfilePage() {
     profile.bio || 'Former ISRO Research Fellow and AI Systems Architect with 8+ years guiding corporate capacity building in AI/ML.'
   );
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaving(true);
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          trainerProfile: {
+            qualifications,
+            experience,
+            expertise,
+            subjects,
+            certifications,
+            bio,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        await refreshUser();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3500);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

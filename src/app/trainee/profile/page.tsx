@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { User, Briefcase, GraduationCap, Target, Save, Mail, Phone, Building } from 'lucide-react';
 
 export default function TraineeProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const profile = user?.traineeProfile || {};
 
   const [name, setName] = useState(user?.name || 'Priya Sharma');
@@ -17,11 +17,39 @@ export default function TraineeProfilePage() {
   const [department, setDepartment] = useState(profile.department || 'Information Technology');
   const [phone, setPhone] = useState(profile.phone || '+91 98765 43210');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaving(true);
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          traineeProfile: {
+            qualifications,
+            experience,
+            interests,
+            skills,
+            careerGoal,
+            department,
+            phone,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        await refreshUser();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3500);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

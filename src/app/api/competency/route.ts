@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { analyzeCompetencyGaps } from '@/lib/ai-engine';
+import { invalidateCache } from '@/lib/server-cache';
 
 export async function GET(req: Request) {
   try {
@@ -31,12 +32,15 @@ export async function GET(req: Request) {
       orderBy: { competency: { name: 'asc' } },
     });
 
-    return NextResponse.json({
-      success: true,
-      analysis,
-      gaps,
-      competencies,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        analysis,
+        gaps,
+        competencies,
+      },
+      { headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' } }
+    );
   } catch (error) {
     console.error('Competency analysis error:', error);
     return NextResponse.json({ error: 'Failed to analyze competencies' }, { status: 500 });
@@ -76,6 +80,10 @@ export async function POST(req: Request) {
       },
       include: { competency: true },
     });
+
+    // Invalidate caches so next reads reflect the update immediately
+    invalidateCache('comp_');
+    invalidateCache('recs_');
 
     // Re-run gap analysis
     const analysis = await analyzeCompetencyGaps(traineeId);

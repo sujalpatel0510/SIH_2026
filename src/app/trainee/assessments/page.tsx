@@ -4,11 +4,14 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { FileQuestion, Clock, Award, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { getClientCached, setClientCached } from '@/lib/client-cache';
 
 export default function AssessmentsListPage() {
   const { user } = useAuth();
-  const [assessments, setAssessments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [assessments, setAssessments] = useState<any[]>(() =>
+    getClientCached('trainee_assessments', [])
+  );
+  const [loading, setLoading] = useState(() => assessments.length === 0);
 
   useEffect(() => {
     async function loadAssessments() {
@@ -16,7 +19,8 @@ export default function AssessmentsListPage() {
         const res = await fetch(`/api/assessments?traineeId=${user?.id || ''}`);
         if (res.ok) {
           const data = await res.json();
-          setAssessments(data.assessments);
+          setAssessments(data.assessments || []);
+          setClientCached('trainee_assessments', data.assessments || []);
         }
       } catch (e) {
         console.error(e);
@@ -103,6 +107,7 @@ export default function AssessmentsListPage() {
                   </span>
                   <Link
                     href={`/trainee/assessments/${assess.id}`}
+                    prefetch={true}
                     className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-amber-700 transition flex items-center gap-1"
                   >
                     {latestAttempt ? 'Re-attempt MCQ' : 'Start Assessment'}

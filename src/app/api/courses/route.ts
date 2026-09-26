@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { CourseStatus, Difficulty } from '@prisma/client';
+import { getCached, setCached, invalidateCache } from '@/lib/server-cache';
 
 export async function GET(req: Request) {
   try {
@@ -8,6 +9,15 @@ export async function GET(req: Request) {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
     const traineeId = searchParams.get('traineeId');
+
+    const cacheKey = `courses_${category || 'ALL'}_${search || ''}_${traineeId || ''}`;
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(
+        { success: true, courses: cached },
+        { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' } }
+      );
+    }
 
     const whereClause: Record<string, unknown> = {
       status: CourseStatus.PUBLISHED,
@@ -38,10 +48,15 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({
-      success: true,
-      courses,
-    });
+    setCached(cacheKey, courses, 30000);
+
+    return NextResponse.json(
+      {
+        success: true,
+        courses,
+      },
+      { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' } }
+    );
   } catch (error) {
     console.error('Fetch courses error:', error);
     return NextResponse.json({ error: 'Failed to fetch courses' }, { status: 500 });
@@ -74,6 +89,9 @@ export async function POST(req: Request) {
         trainer: { include: { trainerProfile: true } },
       },
     });
+
+    invalidateCache('courses_');
+    invalidateCache('recs_');
 
     return NextResponse.json({ success: true, course: newCourse });
   } catch (error) {
@@ -108,6 +126,9 @@ export async function PUT(req: Request) {
       },
       include: { course: true },
     });
+
+    invalidateCache('courses_');
+    invalidateCache('recs_');
 
     return NextResponse.json({
       success: true,
@@ -150,6 +171,9 @@ export async function PATCH(req: Request) {
       },
     });
 
+    invalidateCache('courses_');
+    invalidateCache('recs_');
+
     return NextResponse.json({ success: true, course: updated });
   } catch (error) {
     console.error('Course update error:', error);
@@ -184,6 +208,9 @@ export async function DELETE(req: Request) {
     await prisma.course.delete({
       where: { id: courseId },
     });
+
+    invalidateCache('courses_');
+    invalidateCache('recs_');
 
     return NextResponse.json({ success: true, message: 'Course deleted successfully' });
   } catch (error) {

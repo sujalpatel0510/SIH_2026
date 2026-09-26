@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { analyzeCompetencyGaps } from '@/lib/ai-engine';
+import { invalidateCache } from '@/lib/server-cache';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -140,6 +141,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // Re-run gap analysis
       await analyzeCompetencyGaps(traineeId);
     }
+
+    // Invalidate all related caches so Dashboard, Certificates, and Competencies update immediately
+    invalidateCache('assessments_');
+    invalidateCache('certs_');
+    invalidateCache('comp_');
+    invalidateCache('recs_');
+    invalidateCache('courses_');
 
     return NextResponse.json({
       success: true,

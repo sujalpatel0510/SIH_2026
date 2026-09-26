@@ -18,6 +18,7 @@ import {
   Layers,
   GraduationCap
 } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 
 export default function CourseCatalogPage() {
   const { user } = useAuth();
@@ -45,29 +46,33 @@ export default function CourseCatalogPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadCourses() {
-      try {
-        const query = new URLSearchParams();
-        if (search) query.append('search', search);
-        if (category !== 'ALL') query.append('category', category);
-        query.append('traineeId', user?.id || '');
+    const handler = setTimeout(() => {
+      async function loadCourses() {
+        try {
+          const query = new URLSearchParams();
+          if (search) query.append('search', search);
+          if (category !== 'ALL') query.append('category', category);
+          query.append('traineeId', user?.id || '');
 
-        const res = await fetch(`/api/courses?${query.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCourses(data.courses || []);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('cp_courses_cache', JSON.stringify(data.courses || []));
+          const res = await fetch(`/api/courses?${query.toString()}`);
+          if (res.ok) {
+            const data = await res.json();
+            setCourses(data.courses || []);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('cp_courses_cache', JSON.stringify(data.courses || []));
+            }
           }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
       }
-    }
 
-    loadCourses();
+      loadCourses();
+    }, 250);
+
+    return () => clearTimeout(handler);
   }, [search, category, user]);
 
   const handleEnroll = async (courseId: string) => {
@@ -293,136 +298,129 @@ export default function CourseCatalogPage() {
       )}
 
       {/* Course Detail Modal Drawer */}
-      <AnimatePresence>
+      <Modal isOpen={!!selectedCourse} onClose={() => setSelectedCourse(null)} maxWidth="max-w-2xl">
         {selectedCourse && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200/90 relative"
+          <div className="overflow-hidden rounded-3xl relative">
+            <button
+              onClick={() => setSelectedCourse(null)}
+              className="absolute top-4 right-4 h-8 w-8 rounded-full bg-slate-900/60 hover:bg-slate-900/80 text-white flex items-center justify-center transition active:scale-90 z-20 backdrop-blur-sm"
+              title="Close modal"
             >
-              <button
-                onClick={() => setSelectedCourse(null)}
-                className="absolute top-4 right-4 h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90 z-10"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <X className="w-4 h-4" />
+            </button>
 
-              <div className="relative h-48 sm:h-60 bg-slate-100">
+            <div className="relative h-48 sm:h-60 bg-slate-100">
+              <img
+                src={selectedCourse.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600'}
+                alt={selectedCourse.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-6">
+                <div>
+                  <span className="rounded-md bg-brand-500 text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                    {selectedCourse.category}
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
+                    {selectedCourse.title}
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-brand-600" />
+                  <span>Duration: {selectedCourse.durationHours} Hours</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-purple-600" />
+                  <span>Difficulty: {selectedCourse.difficulty}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                  <span>Subject: {selectedCourse.subject}</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Curriculum Description</h4>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {selectedCourse.description}
+                </p>
+              </div>
+
+              {/* Trainer info */}
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 flex items-center gap-3.5">
                 <img
-                  src={selectedCourse.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600'}
-                  alt={selectedCourse.title}
-                  className="w-full h-full object-cover"
+                  src={selectedCourse.trainer?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                  alt={selectedCourse.trainer?.name}
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-brand-500/20"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-6">
-                  <div>
-                    <span className="rounded-md bg-brand-500 text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                      {selectedCourse.category}
-                    </span>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
-                      {selectedCourse.title}
-                    </h2>
-                  </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">{selectedCourse.trainer?.name}</div>
+                  <div className="text-[11px] text-slate-500">{selectedCourse.trainer?.trainerProfile?.qualifications || 'Master Instructor'}</div>
+                  <div className="text-[11px] text-brand-600 font-semibold mt-0.5">{selectedCourse.trainer?.trainerProfile?.expertise}</div>
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
-                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-brand-600" />
-                    <span>Duration: {selectedCourse.durationHours} Hours</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-purple-600" />
-                    <span>Difficulty: {selectedCourse.difficulty}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4 text-indigo-600" />
-                    <span>Subject: {selectedCourse.subject}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Curriculum Description</h4>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {selectedCourse.description}
-                  </p>
-                </div>
-
-                {/* Trainer info */}
-                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 flex items-center gap-3.5">
-                  <img
-                    src={selectedCourse.trainer?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                    alt={selectedCourse.trainer?.name}
-                    className="w-12 h-12 rounded-full object-cover ring-2 ring-brand-500/20"
-                  />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">{selectedCourse.trainer?.name}</div>
-                    <div className="text-[11px] text-slate-500">{selectedCourse.trainer?.trainerProfile?.qualifications || 'Master Instructor'}</div>
-                    <div className="text-[11px] text-brand-600 font-semibold mt-0.5">{selectedCourse.trainer?.trainerProfile?.expertise}</div>
-                  </div>
-                </div>
-
-                {/* Learning Resources */}
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Course Modules & Materials ({selectedCourse.resources?.length || 0})</h4>
-                  {selectedCourse.resources && selectedCourse.resources.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedCourse.resources.map((res: any) => (
-                        <div key={res.id} className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <FileText className="w-4 h-4 text-brand-600" />
-                            <div>
-                              <p className="font-bold text-slate-800">{res.title}</p>
-                              <p className="text-[10px] text-slate-400">{res.type} • {res.fileSize || '3.2 MB'}</p>
-                            </div>
+              {/* Learning Resources */}
+              <div>
+                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Course Modules & Materials ({selectedCourse.resources?.length || 0})</h4>
+                {selectedCourse.resources && selectedCourse.resources.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedCourse.resources.map((res: any) => (
+                      <div key={res.id} className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <FileText className="w-4 h-4 text-brand-600" />
+                          <div>
+                            <p className="font-bold text-slate-800">{res.title}</p>
+                            <p className="text-[10px] text-slate-400">{res.type} • {res.fileSize || '3.2 MB'}</p>
                           </div>
-                          <span className="text-[11px] font-bold text-brand-600">Included</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 italic">Core learning syllabus, laboratory files and video lectures unlocked upon enrollment.</p>
-                  )}
-                </div>
-
-                {/* Footer action */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <button
-                    onClick={() => setSelectedCourse(null)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
-                  >
-                    Close
-                  </button>
-
-                  {selectedCourse.enrollments && selectedCourse.enrollments.length > 0 ? (
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-4 py-2.5 rounded-xl border border-emerald-200">
-                      <CheckCircle2 className="w-4 h-4" /> Already Enrolled
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEnroll(selectedCourse.id)}
-                      disabled={enrollingId === selectedCourse.id}
-                      className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-95 text-xs font-bold text-white shadow-md transition disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {enrollingId === selectedCourse.id ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Processing...</span>
-                        </>
-                      ) : (
-                        <span>Enroll Now Free</span>
-                      )}
-                    </button>
-                  )}
-                </div>
+                        <span className="text-[11px] font-bold text-brand-600">Included</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">Core learning syllabus, laboratory files and video lectures unlocked upon enrollment.</p>
+                )}
               </div>
-            </motion.div>
+
+              {/* Footer action */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  onClick={() => setSelectedCourse(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+                >
+                  Close
+                </button>
+
+                {selectedCourse.enrollments && selectedCourse.enrollments.length > 0 ? (
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-4 py-2.5 rounded-xl border border-emerald-200">
+                    <CheckCircle2 className="w-4 h-4" /> Already Enrolled
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEnroll(selectedCourse.id)}
+                    disabled={enrollingId === selectedCourse.id}
+                    className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-95 text-xs font-bold text-white shadow-md transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {enrollingId === selectedCourse.id ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <span>Enroll Now Free</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
+      </Modal>
     </div>
   );
 }

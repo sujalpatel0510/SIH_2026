@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { Difficulty, GapSeverity } from '@prisma/client';
 import { findMatchingKnowledge } from './ai-knowledge';
+import { getCached, setCached } from './server-cache';
 
 export interface CompetencyAnalysisResult {
   overallReadiness: number;
@@ -25,6 +26,9 @@ export interface CompetencyAnalysisResult {
  * Maps user current skills against required competencies and generates actionable interventions.
  */
 export async function analyzeCompetencyGaps(traineeId: string): Promise<CompetencyAnalysisResult> {
+  const cacheKey = `comp_analysis_${traineeId}`;
+  const cached = getCached<CompetencyAnalysisResult>(cacheKey);
+  if (cached) return cached;
   let traineeCompetencies = await prisma.traineeCompetency.findMany({
     where: { traineeId },
     include: { competency: true },
@@ -102,49 +106,51 @@ export async function analyzeCompetencyGaps(traineeId: string): Promise<Competen
 
   const overallReadiness = items.length > 0 ? Math.round(totalScore / items.length) : 0;
 
-  // Persist or update gaps in database
-  for (const item of items) {
-    if (item.gap > 0) {
-      await prisma.competencyGap.upsert({
-        where: {
-          traineeId_competencyId: {
-            traineeId,
-            competencyId: item.competencyId,
-          },
-        },
-        create: {
-          traineeId,
-          competencyId: item.competencyId,
-          currentLevel: item.currentLevel,
-          requiredLevel: item.targetLevel,
-          gapSeverity: item.severity,
-          recommendedAction: item.recommendedAction,
-        },
-        update: {
-          currentLevel: item.currentLevel,
-          requiredLevel: item.targetLevel,
-          gapSeverity: item.severity,
-          recommendedAction: item.recommendedAction,
-        },
-      });
-    } else {
-      // Remove resolved gaps
-      await prisma.competencyGap.deleteMany({
-        where: {
-          traineeId,
-          competencyId: item.competencyId,
-        },
-      });
-    }
-  }
+  // Persist or update gaps in database concurrently
+  await Promise.all(
+    items.map((item) =>
+      item.gap > 0
+        ? prisma.competencyGap.upsert({
+            where: {
+              traineeId_competencyId: {
+                traineeId,
+                competencyId: item.competencyId,
+              },
+            },
+            create: {
+              traineeId,
+              competencyId: item.competencyId,
+              currentLevel: item.currentLevel,
+              requiredLevel: item.targetLevel,
+              gapSeverity: item.severity,
+              recommendedAction: item.recommendedAction,
+            },
+            update: {
+              currentLevel: item.currentLevel,
+              requiredLevel: item.targetLevel,
+              gapSeverity: item.severity,
+              recommendedAction: item.recommendedAction,
+            },
+          })
+        : prisma.competencyGap.deleteMany({
+            where: {
+              traineeId,
+              competencyId: item.competencyId,
+            },
+          })
+    )
+  );
 
-  return {
+  const result: CompetencyAnalysisResult = {
     overallReadiness,
     totalCompetencies: items.length,
     gapsIdentified: gapsCount,
     criticalGaps: criticalCount,
     items,
   };
+
+  setCached(cacheKey, result, 30000);
+  return result;
 }
 
 /**
@@ -152,6 +158,10 @@ export async function analyzeCompetencyGaps(traineeId: string): Promise<Competen
  * Discovers and scores courses and trainers precisely addressing trainee gaps.
  */
 export async function generateRecommendations(traineeId: string) {
+  const recCacheKey = `recs_${traineeId}`;
+  const cachedRecs = getCached<any>(recCacheKey);
+  if (cachedRecs) return cachedRecs;
+
   await analyzeCompetencyGaps(traineeId);
 
   const gaps = await prisma.competencyGap.findMany({
@@ -256,10 +266,13 @@ export async function generateRecommendations(traineeId: string) {
   // Sort trainers by score descending
   trainerRecs.sort((a, b) => b.score - a.score);
 
-  return {
+  const result = {
     courses: courseRecs,
     trainers: trainerRecs,
   };
+
+  setCached(recCacheKey, result, 30000);
+  return result;
 }
 
 /**
@@ -270,9 +283,9 @@ export async function generateRecommendations(traineeId: string) {
 export async function generateMCQsFromText(text: string, subject: string, count: number = 5) {
   // 1. NVIDIA AI (NVIDIA NIM Catalog)
   const nvidiaKey = process.env.NVIDIA_API_KEY;
-  if (nvidiaKey && nvidiaKey.trim().length > 0) {
+  if (nvidiaKey && nvidiaKey.trim().startsWith('nvapi-')) {
     try {
-      const model = process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct';
+      const model = process.env.NVIDIA_MODEL || 'meta/llama-3.2-11b-vision-instruct';
       const prompt = `You are an expert assessment author for CampusPilot AI. Generate exactly ${count} multiple choice questions (MCQs) testing understanding of the provided text for "${subject}".
 Return ONLY a valid JSON array of objects with no markdown backticks, no explanations, no wrappers.
 JSON Schema:
@@ -488,9 +501,9 @@ export async function getAILearningAssistantResponse(traineeId: string, userMess
 
   // 2. NVIDIA AI (NVIDIA NIM Catalog)
   const nvidiaKey = process.env.NVIDIA_API_KEY;
-  if (nvidiaKey && nvidiaKey.trim().length > 0) {
+  if (nvidiaKey && nvidiaKey.trim().startsWith('nvapi-')) {
     try {
-      const model = process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct';
+      const model = process.env.NVIDIA_MODEL || 'meta/llama-3.2-11b-vision-instruct';
       const allCourses = await prisma.course.findMany({ select: { title: true, subject: true, difficulty: true } });
       const systemPrompt = `You are CampusPilot AI, an elite institutional learning and competency copilot.
 User Profile:

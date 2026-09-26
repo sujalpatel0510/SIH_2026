@@ -93,6 +93,7 @@ export const Sidebar: React.FC = () => {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={true}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-sm font-bold'
@@ -129,6 +130,7 @@ export const Sidebar: React.FC = () => {
         <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50/90 hover:bg-slate-100/90 border border-slate-200/80 transition-all group">
           <Link
             href={profileHref}
+            prefetch={true}
             className="flex items-center gap-2.5 min-w-0 flex-1 mr-2"
           >
             <div className="relative shrink-0">

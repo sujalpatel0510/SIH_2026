@@ -15,6 +15,7 @@ import {
   Cpu,
 } from 'lucide-react';
 import { FormattedMessage } from '@/components/ai/FormattedMessage';
+import { Modal } from '@/components/ui/Modal';
 
 export default function AIAssistantPage() {
   const { user } = useAuth();
@@ -264,89 +265,87 @@ export default function AIAssistantPage() {
       </div>
 
       {/* NVIDIA API Key Modal */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                  <KeyRound className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-900">Configure NVIDIA AI</h3>
-                  <p className="text-[11px] text-slate-500">NVIDIA NIM & API Catalog Integration</p>
-                </div>
+      <Modal isOpen={showKeyModal} onClose={() => setShowKeyModal(false)} maxWidth="max-w-md">
+        <div className="p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <KeyRound className="w-5 h-5" />
               </div>
-              <button
-                onClick={() => setShowKeyModal(false)}
-                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900">Configure NVIDIA AI</h3>
+                <p className="text-[11px] text-slate-500">NVIDIA NIM & API Catalog Integration</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowKeyModal(false)}
+              className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveNvidiaKey} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                NVIDIA API Key
+              </label>
+              <input
+                type="password"
+                value={nvidiaKeyInput}
+                onChange={(e) => setNvidiaKeyInput(e.target.value)}
+                placeholder={engineStatus?.hasNvidia ? `Current: ${engineStatus.maskedKey} (Paste new to update)` : 'nvapi-...'}
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                required={!engineStatus?.hasNvidia}
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Get your free API key at <a href="https://build.nvidia.com" target="_blank" rel="noreferrer" className="text-emerald-600 underline font-semibold">build.nvidia.com</a>.
+              </p>
             </div>
 
-            <form onSubmit={handleSaveNvidiaKey} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  NVIDIA API Key
-                </label>
-                <input
-                  type="password"
-                  value={nvidiaKeyInput}
-                  onChange={(e) => setNvidiaKeyInput(e.target.value)}
-                  placeholder={engineStatus?.hasNvidia ? `Current: ${engineStatus.maskedKey} (Paste new to update)` : 'nvapi-...'}
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                  required={!engineStatus?.hasNvidia}
-                />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Get your free API key at <a href="https://build.nvidia.com" target="_blank" rel="noreferrer" className="text-emerald-600 underline font-semibold">build.nvidia.com</a>.
-                </p>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                NVIDIA NIM Model
+              </label>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+              >
+                <option value="meta/llama-3.1-70b-instruct">meta/llama-3.1-70b-instruct (Recommended - Fast & Powerful)</option>
+                <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct (Latest Llama 3.3)</option>
+                <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct (NVIDIA Optimized)</option>
+                <option value="mistralai/mixtral-8x22b-instruct-v0.1">mistralai/mixtral-8x22b-instruct-v0.1</option>
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  NVIDIA NIM Model
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="meta/llama-3.1-70b-instruct">meta/llama-3.1-70b-instruct (Recommended - Fast & Powerful)</option>
-                  <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct (Latest Llama 3.3)</option>
-                  <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct (NVIDIA Optimized)</option>
-                  <option value="mistralai/mixtral-8x22b-instruct-v0.1">mistralai/mixtral-8x22b-instruct-v0.1</option>
-                </select>
-              </div>
+            <div className="rounded-xl bg-emerald-50/70 p-3 border border-emerald-100 flex items-start gap-2 text-[11px] text-emerald-800">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <p>
+                Your key is securely stored in your local project environment and used exclusively to generate live assessment questions and answers.
+              </p>
+            </div>
 
-              <div className="rounded-xl bg-emerald-50/70 p-3 border border-emerald-100 flex items-start gap-2 text-[11px] text-emerald-800">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <p>
-                  Your key is securely stored in your local project environment and used exclusively to generate live assessment questions and answers.
-                </p>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowKeyModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingKey || (!nvidiaKeyInput.trim() && !engineStatus?.hasNvidia)}
-                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-md shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  <Zap className="w-3.5 h-3.5 fill-current" />
-                  <span>{savingKey ? 'Activating...' : 'Activate NVIDIA AI'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowKeyModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingKey || (!nvidiaKeyInput.trim() && !engineStatus?.hasNvidia)}
+                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-md shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>{savingKey ? 'Activating...' : 'Activate NVIDIA AI'}</span>
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

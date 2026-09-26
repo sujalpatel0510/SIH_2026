@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Difficulty } from '@prisma/client';
+import { getCached, setCached, invalidateCache } from '@/lib/server-cache';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get('courseId');
     const traineeId = searchParams.get('traineeId');
+
+    const cacheKey = `assessments_${courseId || ''}_${traineeId || ''}`;
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(
+        { success: true, assessments: cached },
+        { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' } }
+      );
+    }
 
     const whereClause: Record<string, unknown> = {};
     if (courseId) whereClause.courseId = courseId;
@@ -17,12 +27,24 @@ export async function GET(req: Request) {
         course: true,
         trainer: { select: { id: true, name: true, avatarUrl: true } },
         questions: true,
-        attempts: traineeId ? { where: { traineeId } } : true,
+        attempts: traineeId
+          ? {
+              where: { traineeId },
+              include: { trainee: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+            }
+          : {
+              include: { trainee: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+            },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ success: true, assessments });
+    setCached(cacheKey, assessments, 30000);
+
+    return NextResponse.json(
+      { success: true, assessments },
+      { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' } }
+    );
   } catch (error) {
     console.error('Fetch assessments error:', error);
     return NextResponse.json({ error: 'Failed to fetch assessments' }, { status: 500 });
@@ -99,23 +121,25 @@ export async function POST(req: Request) {
       include: { questions: true, course: true, trainer: true },
     });
 
-    // Notify all trainees about this newly published assessment
+    // Notify all trainees about this newly published assessment in one batch
     try {
-      const allTrainees = await prisma.user.findMany({ where: { role: 'TRAINEE' } });
-      for (const trainee of allTrainees) {
-        await prisma.notification.create({
-          data: {
-            userId: trainee.id,
+      const allTrainees = await prisma.user.findMany({ where: { role: 'TRAINEE' }, select: { id: true } });
+      if (allTrainees.length > 0) {
+        await prisma.notification.createMany({
+          data: allTrainees.map((t) => ({
+            userId: t.id,
             title: 'New Assessment Published',
             message: `New benchmark assessment available: "${title}". Attempt it now to update your verified competency score.`,
             type: 'ALERT',
             link: `/trainee/assessments/${assessment.id}`,
-          },
+          })),
         });
       }
     } catch (notifErr) {
       console.warn('Failed to dispatch notifications:', notifErr);
     }
+
+    invalidateCache('assessments_');
 
     return NextResponse.json({ success: true, assessment });
   } catch (error) {
@@ -137,6 +161,8 @@ export async function DELETE(req: Request) {
     await prisma.assessmentAttempt.deleteMany({ where: { assessmentId: id } });
     await prisma.question.deleteMany({ where: { assessmentId: id } });
     await prisma.assessment.delete({ where: { id } });
+
+    invalidateCache('assessments_');
 
     return NextResponse.json({ success: true, message: 'Assessment deleted successfully' });
   } catch (error) {

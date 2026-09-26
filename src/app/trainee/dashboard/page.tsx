@@ -16,43 +16,28 @@ import {
   CheckCircle2,
   GraduationCap,
 } from 'lucide-react';
+import { getClientCached, setClientCached } from '@/lib/client-cache';
 
 export default function TraineeDashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('cp_trainee_analysis');
-        if (cached) return JSON.parse(cached);
-      } catch {}
-    }
-    return {
+  const [analysis, setAnalysis] = useState<any>(() =>
+    getClientCached('trainee_analysis', {
       overallReadiness: 78,
       gapsIdentified: 1,
       criticalGaps: 0,
       totalCompetencies: 5,
-    };
-  });
-  const [recommendations, setRecommendations] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('cp_trainee_recs');
-        if (cached) return JSON.parse(cached);
-      } catch {}
-    }
-    return null;
-  });
-  const [courses, setCourses] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('cp_courses_cache');
-        if (cached) return JSON.parse(cached);
-      } catch {}
-    }
-    return [];
-  });
-  const [assessments, setAssessments] = useState<any[]>([]);
+    })
+  );
+  const [recommendations, setRecommendations] = useState<any>(() =>
+    getClientCached('trainee_recs_data', null)
+  );
+  const [courses, setCourses] = useState<any[]>(() =>
+    getClientCached('cp_courses_cache', [])
+  );
+  const [assessments, setAssessments] = useState<any[]>(() =>
+    getClientCached('trainee_assessments', [])
+  );
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -67,24 +52,22 @@ export default function TraineeDashboard() {
         if (compRes.ok) {
           const compData = await compRes.json();
           setAnalysis(compData.analysis);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('cp_trainee_analysis', JSON.stringify(compData.analysis));
-          }
+          setClientCached('trainee_analysis', compData.analysis);
         }
         if (recRes.ok) {
           const recData = await recRes.json();
           setRecommendations(recData.recommendations);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('cp_trainee_recs', JSON.stringify(recData.recommendations));
-          }
+          setClientCached('trainee_recs_data', recData.recommendations);
         }
         if (courseRes.ok) {
           const courseData = await courseRes.json();
-          setCourses(courseData.courses);
+          setCourses(courseData.courses || []);
+          setClientCached('cp_courses_cache', courseData.courses || []);
         }
         if (assessRes.ok) {
           const assessData = await assessRes.json();
-          setAssessments(assessData.assessments);
+          setAssessments(assessData.assessments || []);
+          setClientCached('trainee_assessments', assessData.assessments || []);
         }
       } catch (e) {
         console.error(e);
@@ -114,6 +97,7 @@ export default function TraineeDashboard() {
         <div className="flex items-center gap-3">
           <Link
             href="/trainee/competencies"
+            prefetch={true}
             className="flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-brand-700 transition"
           >
             <Target className="w-4 h-4" />
@@ -145,6 +129,7 @@ export default function TraineeDashboard() {
           </div>
           <Link
             href="/trainee/recommendations"
+            prefetch={true}
             className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 transition shrink-0 flex items-center gap-1"
           >
             View Recommendations <ArrowRight className="w-3.5 h-3.5" />
@@ -196,10 +181,14 @@ export default function TraineeDashboard() {
           <p className="text-[11px] text-slate-400 mt-1">ML Competency Assessment</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 border border-slate-200/80 shadow-subtle">
+        <Link
+          href="/trainee/certificates"
+          prefetch={true}
+          className="rounded-2xl bg-white p-5 border border-slate-200/80 shadow-subtle hover:border-emerald-300 hover:shadow-card transition-all block group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Certificates</span>
-            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-emerald-700 transition">Certificates</span>
+            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
               <Award className="w-4 h-4" />
             </div>
           </div>
@@ -207,8 +196,11 @@ export default function TraineeDashboard() {
             <span className="text-2xl font-black text-slate-900">1</span>
             <span className="text-[11px] font-semibold text-emerald-600">Verified</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Cloud Architecture Specialist</p>
-        </div>
+          <p className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+            <span>Cloud Architecture</span>
+            <span className="text-emerald-600 font-bold group-hover:underline">+ Add New</span>
+          </p>
+        </Link>
       </div>
 
       {/* Main 2-Column Section */}
@@ -221,7 +213,7 @@ export default function TraineeDashboard() {
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-brand-600" /> My Learning Programs
               </h2>
-              <Link href="/trainee/courses" className="text-xs font-bold text-brand-600 hover:underline">
+              <Link href="/trainee/courses" prefetch={true} className="text-xs font-bold text-brand-600 hover:underline">
                 Explore All
               </Link>
             </div>
@@ -262,6 +254,7 @@ export default function TraineeDashboard() {
                       </div>
                       <Link
                         href={`/trainee/resources`}
+                        prefetch={true}
                         className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-200 transition"
                       >
                         Open Course
@@ -279,7 +272,7 @@ export default function TraineeDashboard() {
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <FileQuestion className="w-4 h-4 text-amber-600" /> Pending MCQ Assessments
               </h2>
-              <Link href="/trainee/assessments" className="text-xs font-bold text-brand-600 hover:underline">
+              <Link href="/trainee/assessments" prefetch={true} className="text-xs font-bold text-brand-600 hover:underline">
                 View All
               </Link>
             </div>
@@ -306,6 +299,7 @@ export default function TraineeDashboard() {
 
                     <Link
                       href={`/trainee/assessments/${assess.id}`}
+                      prefetch={true}
                       className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 transition shrink-0 text-center"
                     >
                       Attempt MCQ
